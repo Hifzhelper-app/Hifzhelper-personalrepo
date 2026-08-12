@@ -1,0 +1,1442 @@
+/* ============================================================
+   Hifzhelper -- detail pages: tajweed picker, timer, shared form bits
+   Current as of V3.45.13
+   ============================================================ */
+
+.detail-page label {
+  display: block; font-size: var(--font-size-base); color: var(--color-ink-soft);
+  margin-top: var(--space-md); margin-bottom: 4px;
+}
+.detail-page select, .detail-page input, .detail-page textarea {
+  width: 100%; padding: var(--space-sm);
+  border: 1px solid var(--color-table-border); border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+.picker-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm);
+}
+/* V3.26.1: Juz/position row -- when the position switch hides itself
+   entirely (Full/Juz unit has exactly one valid starting marker, so
+   there's nothing to choose -- see dhorPage.js's renderDhorPositionOptions),
+   this collapses the row to one column so Juz's own field expands to
+   fill the space rather than leaving an empty gap beside it. */
+.picker-row.picker-row-single {
+  grid-template-columns: 1fr;
+}
+/* 2026-08-03: Juz's <select> had no explicit height (relying on padding +
+   line-height, which varies by platform/browser and commonly doesn't
+   match a fixed value), while the Position switch has always had an
+   explicit 42px -- so their bottom edges didn't line up. Both now share
+   one explicit height instead of one side guessing at the other's. */
+/* 2026-08-04: was hardcoded to 44px separately from Row 2's own
+   --dhor-row2-h (also 44px, coincidentally the same number, but two
+   separate values that could easily drift apart again) -- now the same
+   single shared variable everywhere. */
+#dhor_juz {
+  height: var(--dhor-row2-h);
+  box-sizing: border-box;
+}
+#dhor_position_switch {
+  height: var(--dhor-row2-h);
+}
+
+/* V3.18.0: header rebuilt as two explicit CSS grids per the confirmed
+   spec, replacing V3.12.0's flex row -- row 1 is icon:heading:save at
+   10:70:20, row 2 is date:blank at 30:70. save-status + the Save button
+   are grouped into one wrapper (.card-header-save-wrap in index.html) so
+   they occupy grid column 3 together, stacked, instead of each claiming
+   their own auto-placed column. Applies to all 4 detail cards
+   identically. The bottom-of-card Save button these cards used to have
+   is gone -- this is the only Save control now. */
+.card-header-row {
+  display: grid;
+  grid-template-columns: 10% 70% 20%;
+  align-items: center;
+  gap: var(--space-sm);
+}
+/* V3.45.7: Sabaq/Sabaq Dhor/Dhor's own header rows get a 4th column for
+   the new timer icon, confirmed in chat -- scoped to just these 3
+   cards by id rather than changing the shared .card-header-row rule
+   itself, since every other screen (Tadabbur, Juz Tracker, etc.) still
+   uses the plain 3-column version and shouldn't be affected. */
+/* V3.45.9: simplified back to 3 columns, confirmed in chat -- the
+   heading and timer button are no longer 2 separate grid columns
+   (that's what caused the timer button to sit a fixed distance from
+   the heading regardless of how short the text was, "hanging around"
+   rather than reading as one phrase). Now grouped together in
+   .card-header-title-group below instead, so the timer button's
+   position dynamically follows wherever the heading text actually
+   ends. Same 10/70/20 proportions the shared default already uses. */
+#card-sabaq .card-header-row,
+#card-sabaqDhor .card-header-row,
+#card-dhor .card-header-row {
+  grid-template-columns: 10% 70% 20%;
+}
+/* Heading + timer button as one flex unit, confirmed in chat --
+   min-width:0 lets the h2's own ellipsis-truncation (the shared
+   .card-header-row h2 rule below still applies, unchanged, since it's
+   a descendant selector) keep working correctly inside a flex
+   context; the timer button doesn't grow/shrink (flex: 0 0 auto),
+   sitting immediately after however much space the heading text
+   itself actually takes up. */
+.card-header-title-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+.card-header-title-group .card-header-timer-btn { flex: 0 0 auto; }
+.card-header-timer-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 10px;
+  font-weight: normal;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+}
+/* V3.45.8: added a "Timer" text label below the icon, confirmed in
+   chat -- matches the icon-on-top/uppercase-label convention
+   .card-header-save-btn already uses. Icon shrunk from 24px to 20px.
+   V3.45.9: `justify-self: center` (a grid-only property) removed --
+   no longer a direct grid child of .card-header-row at all, now a
+   flex child of .card-header-title-group instead (see that rule's
+   own comment above for why). */
+.card-header-timer-btn svg { width: 20px; height: 20px; }
+.card-header-row h2 { margin: 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-header-icon { width: 22px; height: 22px; color: var(--color-ink-soft); justify-self: center; }
+.card-header-icon svg { width: 100%; height: 100%; }
+
+/* V3.41: X-to-Home, added to every screen except Home itself (confirmed
+   in chat) -- generalizes the same visual language .log-detail-close
+   already established (below) into a shared class, rather than a
+   second copy of the same rules. Reuses the existing `close` icon
+   throughout for consistency. */
+.screen-close-btn {
+  border: none;
+  background: none;
+  padding: 4px;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+}
+.screen-close-btn svg { width: 22px; height: 22px; }
+.screen-close-btn:active { opacity: 0.6; }
+/* Slots into a .card-header-row's 3rd (20%) column, same justify-self
+   convention .card-header-save-wrap already uses for that column. */
+.card-header-row .screen-close-btn { justify-self: center; }
+/* For screens with no natural single-title header to slot into
+   (Journal's own table header, Settings' 4 independent sections) -- a
+   dedicated top-of-screen row instead. */
+.screen-top-close-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-sm);
+}
+/* V3.20.0: icon doubled in size and the whole unit centered (was right-
+   aligned, hugging the column's edge and looking cramped live) both
+   horizontally (align-items on the wrap) and within its grid cell
+   (justify-self/align-self on the wrap itself, since .card-header-row's
+   own align-items:center only centers row-height, not column-width). */
+.card-header-save-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-self: center;
+  align-self: center;
+  gap: 2px;
+  min-width: 0;
+}
+/* V3.41: when a screen's card-header-row already has save controls in
+   its 3rd column (Tadabbur currently), the new X-to-Home button joins
+   them here instead of fighting for the same grid slot -- a plain flex
+   row, save-wrap keeps its own existing layout untouched inside it. */
+.card-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  justify-self: center;
+}
+/* V3.23.0: date field widened -- was a fixed 30% column that truncated
+   the rendered date text on narrower screens; now sized to its own
+   natural content width instead. History moved into this same row
+   (index.html) rather than sitting on its own further down, and
+   align-items:stretch makes it match the date field's height exactly
+   regardless of exact pixel values on either side. */
+.card-date-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: stretch;
+  height: var(--dhor-row2-h);
+  margin-top: 4px;
+  gap: var(--space-sm);
+}
+.card-header-date {
+  padding: 4px 6px;
+  box-sizing: border-box;
+}
+/* Custom date display (2026-08-03, confirmed in chat): a native
+   <input type="date">'s own displayed text is entirely browser/OS-
+   controlled -- no CSS can reformat it, which is why desktop Chrome and
+   mobile Safari were showing 2 different formats for the same date.
+   wireCustomDateDisplay (js/customDate.js) wraps each date input in
+   .custom-date-wrap, hides the input itself (still fully functional,
+   just invisible) and adds this visible button in its place, showing a
+   consistent "DDD dd-MMM" format everywhere. Clicking it calls the
+   input's own .showPicker() -- same native picker as before, just a
+   different visible face on top of it. Padding/font-size reduced here
+   too, per the earlier separate request. */
+.custom-date-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.native-date-hidden {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.custom-date-display {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 4px 4px;
+  border: 1px solid var(--color-table-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  color: var(--color-ink);
+}
+/* V3.24.0: Row 2 replaces the old date-row + separate Amount/View-Plan
+   row with ONE 40:30:30 grid (date : Plan Dhor : History) -- a shared
+   --dhor-row2-h custom property (defined on the whole card so both this
+   row AND Row 3's switch below can reference it) gives both buttons a
+   real fixed height with wrapping (not truncating) labels, scoped here
+   rather than changing .history-btn's general sizing, since Sabaq/Sabaq
+   Dhor still use that for their own differently-laid-out History
+   buttons. */
+/* 2026-08-04: unified spacing/sizing system, confirmed in chat -- one
+   shared row-height variable for every card instead of each row picking
+   its own value (this used to be 40px here, 44px on Juz/Position and
+   Duration/Timer, and nothing explicit at all on Sabaq/Sabaq Dhor's date
+   row, which is exactly why nothing lined up between cards). Defined on
+   .detail-page so all 4 cards share the exact same value. */
+.detail-page { --dhor-row2-h: 44px; }
+/* 2026-08-04: was a fixed 40:30:30 split -- confirmed in chat, changed
+   to auto:1fr:1fr so the date sizes to its own short text (matching
+   Sabaq/Sabaq Dhor's date field exactly, which has always been
+   auto-sized) instead of being stretched to fill a fixed share of the
+   row regardless of its content. Plan and History split whatever's left
+   evenly. */
+.dhor-row2 {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  align-items: stretch;
+  gap: var(--space-sm);
+  margin-top: 4px;
+}
+/* 2026-08-03: grid items default to min-width:auto, which refuses to
+   shrink a child below its own content's natural size even when the
+   column is narrower -- on a wide card this goes unnoticed, but on a
+   narrow mobile width it can push a button past its assigned column and
+   touch the card's edge. min-width:0 on all 3 columns forces each to
+   actually respect its assigned share instead. */
+.dhor-row2 > * { min-width: 0; }
+.dhor-row2 .card-header-date { height: var(--dhor-row2-h); }
+.dhor-row2-btn,
+.dhor-row2 #dhorRecentRail .history-btn {
+  width: 100%;
+  height: var(--dhor-row2-h);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: normal;
+  word-break: break-word;
+  padding: 4px 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--palette-evergreen);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.15;
+}
+/* 2026-08-04: was sitting directly under Row 2 with no breathing room --
+   confirmed in chat. Matches the margin-top every other row in this card
+   already uses (.card-date-row, .dhor-row2, .picker-row's own natural
+   label spacing) for consistency. */
+#dhorAmountRow {
+  margin-top: var(--space-sm);
+}
+/* Row 3: Amount as a 3-way switch (reusing js/uiSwitch.js's shared
+   component, same one Setup's Dhor Schedule granularity switch already
+   uses), sized to 75% of Row 2's button height specifically -- not an
+   independent hardcoded value -- so the two rows visibly relate. */
+.switch-track.dhor-amount-switch {
+  height: calc(var(--dhor-row2-h) * 0.75);
+  margin: 0 auto;
+  width: 78%;
+}
+/* V3.19.0: Save button restyled to match Hifzhelper's own existing
+   icon-button convention (.nav-icon-item, css/base.css -- icon on top,
+   label below, no border/background) instead of being a special-cased
+   bordered button. This becomes the default for in-app icon buttons
+   generally, not just Save (confirmed in chat). Label text stays normal
+   weight (not bold) -- text-transform handles the caps, the underlying
+   string ("Save"/"Saving") is untouched. */
+.card-header-save-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  background: none;
+  padding: 2px;
+  font-size: 10px;
+  font-weight: normal;
+  text-transform: uppercase;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.card-header-save-btn:active { opacity: 0.6; }
+.card-header-save-btn svg { width: 36px; height: 36px; }
+
+/* Tajweed picker (V3.12.0) -- a compact trigger button instead of an
+   inline row of toggle buttons, opening a popup with a checkbox per tag
+   (multi-select doesn't fit a scroll-wheel or a plain dropdown). */
+.tajweed-trigger-btn {
+  width: 100%;
+  text-align: left;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-table-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-ink-soft);
+  font-size: 13px;
+}
+.tajweed-checkbox-list {
+  margin-top: var(--space-md);
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.tajweed-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 6px 0;
+  font-size: 14px;
+}
+.tajweed-checkbox-row input { width: auto; }
+
+/* Sabaq Dhor's checkable quarter-sections (V3.13.0) -- same row shape as
+   the tajweed popup's checkbox list, just inline on the card itself
+   rather than in a popup (there are at most 4, no need to hide them
+   behind a trigger button the way tajweed's larger vocabulary needs). */
+/* V3.21.2 fix: this used to be a separate CSS grid PER ROW (each row its
+   own .sabaq-dhor-section-row, 80:20 columns computed independently),
+   wrapped in a flex .sabaq-dhor-row-wrap to fit the optional Move to
+   Dhor button beside it. That's the wrong tool for cross-row alignment
+   -- confirmed in chat -- because each row's grid resolves its own 80%/
+   20% split against ITS OWN box, so any tiny per-row width difference
+   (rounding, or simply not being a perfectly reliable assumption) can
+   shift that row's checkbox independently of the others. #sabaqDhor_sections
+   is now ITSELF one shared grid; every row contributes exactly 3 direct
+   grid children (text, move-button-or-empty-placeholder, checkbox) so
+   every checkbox genuinely shares the same column across every row, the
+   same way an HTML table's cells would -- not just three separately-
+   computed approximations of the same column. */
+/* V3.45.11: one shared outer border groups all 3 rows. V3.45.12 keeps
+   that group border and restores a separate border around each row's
+   field only. The checkbox remains outside its field border but inside
+   this outer group, paired with the field by the shared grid row. */
+.sabaq-dhor-sections-list {
+  display: grid;
+  /* V3.45.6: 3rd column changed from auto to a fixed 44px, confirmed in
+     chat, matching .checkbox-box's own width exactly -- so this grid's
+     checkbox column and the manual-selection row's own checkbox-box
+     below it (a separate flex row, not part of this grid) land at the
+     identical horizontal position, not just visually close. */
+  grid-template-columns: 1fr auto 44px;
+  align-items: center;
+  column-gap: var(--space-sm);
+  row-gap: var(--space-xs);
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--color-table-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  padding: var(--space-sm);
+}
+.sabaq-dhor-row-text {
+  min-width: 0;
+  font-size: 14px;
+  padding: 2px 0;
+}
+/* V3.45.12: the two generated section labels are <label> elements, so
+   they otherwise inherit .detail-page label's 16px top margin and 4px
+   bottom margin. That margin was stretching only those grid rows, while
+   the manual .verse-ref-field had no equivalent margin. This scoped rule
+   resets both margins and gives the field its own border. The adjacent
+   checkbox remains a separate child in the shared 44px checkbox column. */
+#sabaqDhor_sections > .sabaq-dhor-row-text {
+  margin: 0;
+  padding: var(--space-sm);
+  /* V3.45.9: explicit min-height added, confirmed in chat -- matches
+     .checkbox-box's own 44px (the box sitting directly beside it in
+     the same row) and .verse-ref-field below, so all 3 long boxes on
+     this screen render identical in height regardless of what's
+     inside them. min-height rather than a hard height deliberately --
+     this row's own text ("Quarter 2 (current): 3:130 - 3:165") can
+     wrap to 2 lines on narrower screens, and a fixed height would
+     clip that wrapped text; min-height matches on the wide screens
+     where the mismatch was actually observed, without risking
+     overflow anywhere narrower text wraps. Without this at all,
+     .verse-ref-field's own internal ayah-stepper (2 buttons stacked
+     vertically) has a taller natural content height than this box's
+     own single line of text, even with the same padding value. */
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--color-table-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+.move-to-dhor-btn {
+  border: 1px solid var(--palette-evergreen);
+  color: var(--palette-evergreen);
+  background: none;
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 12px;
+}
+/* V3.45.6: replaces V3.45.5's width/height-only fix on the native
+   checkbox itself, confirmed in chat as unreliable across browsers --
+   native checkboxes (appearance:auto, the default) don't always
+   respect explicit width/height the same way other elements do. This
+   sidesteps that entirely: a plain container div/span reliably
+   respects explicit CSS dimensions regardless of browser, so the
+   checkbox itself stays unstyled and just sits inside one. Same
+   bordered-box look as .verse-ref-field again, sized to comfortably
+   fit a checkbox with real padding around it -- one shared class used
+   everywhere a checkbox needs this treatment, not a scattered rule
+   per screen. */
+/* V3.45.9: border/background removed, confirmed in chat -- the
+   checkbox itself was already "perfect as-is," it was specifically
+   this container's own visible border drawing an unwanted box shape
+   around it that needed to go. background was already invisible
+   either way (matched the surrounding card's own color exactly) --
+   removed anyway for cleanliness, not because it was ever the thing
+   being seen. Sizing/alignment/centering role (the actual fix for the
+   original cross-browser checkbox-sizing problem, V3.45.6) is
+   completely unchanged -- the checkbox still sits centered in the
+   same 44x44px area, still aligned identically across all 3 rows,
+   just with no visible border marking that area's edges anymore. */
+.checkbox-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+}
+/* V3.45.14: checkbox made genuinely bigger on medium/large screens only,
+   confirmed in chat -- transform:scale() on the native input itself
+   rather than trying to set its own width/height directly, since a
+   native checkbox doesn't reliably respect those across browsers
+   (confirmed unreliable in this app's own V3.45.5 history). scale()
+   sizes the already-rendered element instead of fighting its internal
+   sizing, which doesn't have that same cross-browser problem. Also
+   addresses the "reduce space to the right" bonus, confirmed via an
+   annotated screenshot as BOTH readings together: .checkbox-box's own
+   width shrinks (less residual empty space within its own container,
+   directly reducing "the space in the checkbox's box"), and the outer
+   group's own right-edge padding trims down too (reducing "the space
+   between the 44px box and the group's outer edge"). Height stays 44px
+   throughout -- unchanged, for vertical alignment with the other 44px
+   elements on this same row. Mobile (<768px) is completely untouched,
+   confirmed as in scope.
+   V3.45.15: 2 refinements on top of the above, same scope (medium/large
+   only) -- scale reduced from 1.8 to 1.5 ("a little smaller," no
+   specific value given), and a new left margin added on .checkbox-box
+   itself, separating it from the range/picker box beside it. This is a
+   different edge than V3.45.14's own right-edge reduction above -- not
+   a reversal of it, since that fix targeted the space AFTER the
+   checkbox (toward the group's outer edge), while this one is
+   specifically about the space BEFORE it. Stacks with the grid's own
+   existing column-gap rather than replacing it, adding a bit more
+   separation specifically on this one edge. */
+@media (min-width: 768px) {
+  .checkbox-box input[type="checkbox"] {
+    transform: scale(1.5);
+  }
+  .checkbox-box {
+    width: 36px;
+    margin-left: var(--space-xs);
+  }
+  /* 3rd column grown from 36px to 40px here, confirmed necessary --
+     .checkbox-box's own 36px width plus its new 4px left margin
+     (var(--space-xs)) together need 40px of room; leaving the column
+     at exactly 36px (matching width alone, the way it did before this
+     margin existed) would have left no space for the margin to
+     actually create, risking the box overflowing its own cell instead
+     of the intended gap appearing. */
+  .sabaq-dhor-sections-list {
+    grid-template-columns: 1fr auto 40px;
+    padding-right: var(--space-xs);
+  }
+}
+/* V3.45.6: Sabaq Dhor's own manual-selection row, confirmed in chat --
+   the picker takes remaining space, the checkbox-box sits fixed-width
+   at the end, same as the section rows' own grid below so both align
+   at the same horizontal position. */
+/* V3.45.10: .sabaq-dhor-manual-row (a separate flex wrapper) and its
+   own scoped min-height rule are REMOVED entirely, confirmed in chat --
+   "Set Sabaq Dhor" is no longer a separate layout context at all. It's
+   now a genuine 4th part of the SAME #sabaqDhor_sections grid
+   "Quarter 2"/"Quarter 1" already share (js/sabaqDhorPage.js's
+   renderSabaqDhorRows) -- the unified-grid architecture this version
+   builds, extending V3.21.2's own "every checkbox genuinely shares the
+   same column" principle to include the manual field too. Resolves
+   the width/left-alignment mismatches (V3.45.9's own invisible-spacer
+   hack is also gone, no longer needed -- an empty <span> in the same
+   position "Quarter 2"/"Quarter 1" already use when they have no Move
+   button naturally occupies that column now, no faked-width button
+   required) by construction rather than by matching values across
+   what used to be 2 separate contexts. */
+/* V3.45.11: this class and the "Set Sabaq Dhor" heading it labeled
+   were REMOVED entirely, confirmed in chat -- redundant once one
+   shared border around all 3 rows already made clear they're all part
+   of the same "Confirm Sabaq Dhor" action.
+   V3.45.14: RE-ADDED for a different purpose -- the manual field
+   became a genuine From/To range, "exactly like the Sabaq card,"
+   which needs its own 2 labels the same way Sabaq's own "Sabaq
+   from"/"Sabaq to" labels already work. margin:0 included this time
+   (V3.45.11's version never needed it, having been removed before
+   V3.45.12's own margin discovery) -- this is also a <label>, so
+   without it, it would inherit the exact same 16px-top/4px-bottom
+   margin from .detail-page label that .sabaq-dhor-row-text needed
+   its own reset for. */
+.sabaq-dhor-sections-header { grid-column: 1 / -1; margin: 0; }
+/* V3.45.12: the manual picker keeps the shared .verse-ref-field border
+   and background. Only its height is scoped here; its checkbox stays in
+   the next grid column, outside the field border and inside the group's
+   outer border. */
+#sabaqDhor_sections > .verse-ref-field {
+  min-height: 44px;
+}
+/* V3.19.0: rollup control is now a 2-button vertical stepper sitting to
+   the left of the section list itself (js/icons.js: rollupMerge/
+   rollupSplit), replacing the old full-width row above the list. Each
+   button is display:none (not just visually hidden) when its action
+   isn't actually eligible right now -- set in JS since it depends on
+   comparing computed rows at adjacent rollup levels. */
+.sabaq-dhor-sections-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.sabaq-dhor-rollup-stepper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.sabaq-dhor-rollup-btn {
+  border: none;
+  background: none;
+  padding: 4px;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+}
+.sabaq-dhor-rollup-btn svg { width: 18px; height: 18px; }
+
+/* V3.45.13: breakpoint-specific Sabaq Dhor refinements. The existing
+   768-1179px layout is deliberately untouched because it already renders
+   correctly.
+
+   Mobile: when neither roll-up direction is available, JS marks the
+   otherwise-empty stepper as .rollup-inactive. Removing only that empty
+   gutter, then reducing the checkbox track/gaps/horizontal group padding,
+   returns enough width to the field column for the current-quarter text
+   to remain on one line. Checkbox height stays 44px and every checkbox
+   remains outside its field border but inside the outer group border. */
+@media (max-width: 767px) {
+  .sabaq-dhor-rollup-stepper.rollup-inactive { display: none; }
+  .sabaq-dhor-sections-list {
+    grid-template-columns: minmax(0, 1fr) auto 32px;
+    column-gap: var(--space-xs);
+    padding-inline: var(--space-xs);
+  }
+  #sabaqDhor_sections .checkbox-box { width: 32px; }
+}
+
+/* Large: an auto-sized CSS grid can stretch its implicit auto rows when
+   surplus block-axis space reaches the container, leaving a 44px field
+   visibly centred inside a much taller row. Size the group from its own
+   content, make implicit rows max-content, and pack them at the start.
+   Four pixels of vertical outer padding then matches the 4px row gap. */
+@media (min-width: 1180px) {
+  .sabaq-dhor-sections-list {
+    height: max-content;
+    grid-auto-rows: max-content;
+    align-content: start;
+    padding-block: var(--space-xs);
+  }
+}
+
+/* Combined surah:ayah input field -- V3.18.0 rebuild as an explicit CSS
+   grid (chevron:surah:ayah:chevron at 10:50:30:10, per the confirmed
+   spec), replacing the flex version entirely rather than patching it.
+   The flex version had no min-width guard on the surah label, so a long
+   surah name could eat into its neighbours' share depending on exactly
+   how much room its flex siblings claimed that render -- the same root
+   issue (an unconstrained sibling silently stealing space from one
+   that's supposed to have a fixed share) as the V3.14.1 ayah-width bug,
+   just showing up via flex-basis instead of a specificity fight. Grid +
+   min-width:0 on every text-bearing cell fixes it the same way for
+   good: each column keeps exactly its assigned share no matter the
+   content length. Left chevron keeps its existing job (opens the surah
+   picker). Right chevron is new -- an explicit up/down stepper for the
+   ayah value, since it was the native number input's own spinner that
+   wasn't showing ("not visible at all") -- this replaces reliance on it
+   rather than trying to make it visible. */
+.verse-ref-field {
+  display: grid;
+  grid-template-columns: 10% 50% 30% 10%;
+  align-items: center;
+  gap: var(--space-xs);
+  border: 1px solid var(--color-table-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+  background: var(--color-surface);
+}
+.verse-ref-chevron {
+  border: none;
+  background: none;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  padding: 4px;
+  justify-self: center;
+}
+.verse-ref-surah-label {
+  font-size: 14px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.verse-ref-ayah-cell {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.verse-ref-sep {
+  color: var(--color-ink-faint);
+  flex-shrink: 0;
+}
+.verse-ref-field .verse-ref-ayah {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  padding: 0;
+  text-align: right;
+}
+.verse-ref-ayah-stepper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-self: center;
+}
+.verse-ref-ayah-stepper button {
+  border: none;
+  background: none;
+  padding: 1px 4px;
+  font-size: 9px;
+  line-height: 1.2;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+}
+.surah-picker-list {
+  margin-top: var(--space-md);
+  max-height: 60vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.surah-picker-row {
+  width: 100%;
+  text-align: left;
+  margin: 0;
+}
+
+/* Tajweed pill buttons -- still used inside the popup's own grid style
+   isn't needed here (checkboxes instead), but the "+ add" button and the
+   Setup/Juz'-grid slide-ins still use this pill look. */
+.tajweed-tag {
+  display: inline-block;
+  padding: 6px 12px;
+  margin: 4px 6px 0 0;
+  border: 1px solid var(--color-table-border);
+  border-radius: 999px;
+  font-size: 12px;
+  background: var(--color-surface);
+  color: var(--color-ink-soft);
+}
+.tajweed-tag.active {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent);
+}
+.tajweed-tag.major.active {
+  background: var(--color-error);
+  border-color: var(--color-error);
+}
+.tajweed-tag.tajweed-add {
+  border-style: dashed;
+  color: var(--color-ink-faint);
+}
+.tajweed-tag:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.teacher-feedback-box {
+  margin-top: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-page-bg);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+/* V3.18.0: Private checkbox moves up next to the "Notes" label itself,
+   replacing the row below the textarea (js/commentPrivacy.js). Scoped
+   margin override below -- tadabbur's own private checkbox (a separate,
+   standalone use of .cb-private-row under "Reflection", not "Notes")
+   keeps its original spacing. */
+.notes-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-md);
+  margin-bottom: 4px;
+}
+.notes-header-row label { margin: 0; }
+.cb-private-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--color-ink-soft);
+}
+.notes-header-row .cb-private-row { margin-top: 0; }
+.cb-private-row input { width: auto; }
+.save-btn-text { white-space: nowrap; }
+
+/* Small-wide switch variant (V3.12.0) -- the Notes block's Private/Public
+   switch: wider than Setup's tiny inline gender switch, but not a full
+   Setup-style field-width track either. */
+.switch-track-small-wide {
+  height: 34px;
+  max-width: 220px;
+}
+.switch-track-small-wide .switch-option { font-size: 13px; }
+
+/* Timer */
+.timer-display {
+  font-family: var(--font-mono);
+  font-size: 40px;
+  text-align: center;
+  padding: var(--space-md) 0;
+}
+.timer-laps {
+  max-height: 100px; overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-ink-soft);
+}
+.lap-row { padding: 2px 0; }
+.timer-controls {
+  display: flex; gap: var(--space-sm); margin-top: var(--space-sm);
+}
+.timer-controls button { flex: 1; }
+#dhorTimerSummary, #sabaqDhorTimerSummary {
+  font-size: 12px; color: var(--color-ink-soft); text-align: center; margin-top: var(--space-xs);
+}
+
+.save-status {
+  display: inline-block; opacity: 0; transition: opacity 0.2s;
+  color: var(--color-success); font-size: 12px;
+  margin-left: auto;
+}
+/* Scoped rather than changed globally -- .save-status is shared with the
+   Setup screens (css/settings.css), which have their own flex wrapper
+   and don't need this. Only the new narrow 20%-wide save column here
+   needs the smaller size. */
+.card-header-save-wrap .save-status { font-size: 10px; }
+.save-status.show { opacity: 1; }
+
+.rail-card-date { font-size: 11px; color: var(--color-ink-faint); margin-bottom: 4px; }
+.rail-card-body { font-size: 13px; }
+.rail-card-laps { font-size: 12px; color: var(--color-ink-faint); margin-top: 2px; }
+
+/* History button (V3.18.0) -- compact, dark green (Evergreen), type-
+   specific text ("Sabaq History" etc. -- js/dhorPage.js). The last-2-
+   entries list below it is removed per the confirmed scope; the button
+   alone opens the full popup (up to 50 entries), which still reuses
+   .history-entry-row below.
+   V3.23.0: moved into the date row (index.html), right-justified with
+   edge padding, height matched to the date field via the row's own
+   align-items:stretch (above) rather than a hardcoded pixel value --
+   robust regardless of the exact rendered height of either side. Width
+   deliberately left to size to its own label rather than forced to
+   match the date field's width too, since "Sabaq Dhor History" would
+   otherwise risk wrapping/truncating on a narrower screen. */
+.history-container {
+  display: flex;
+  justify-content: flex-end;
+  padding-right: var(--space-sm);
+}
+.history-btn {
+  height: 100%;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--palette-evergreen);
+  color: #fff;
+  font-size: 13px;
+  white-space: nowrap;
+}
+/* V3.21.0: entry rows now hold an edit (pencil) icon button per row,
+   opening that entry for editing in the card's own form. */
+.history-entry-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-table-border);
+}
+.history-entry-edit-btn {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  padding: 4px;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+}
+.history-entry-edit-btn svg { width: 16px; height: 16px; }
+/* V3.45.1: only added to .history-entry-content when a caller passes
+   renderRecentEntries' new onRowClick parameter (currently just
+   Tadabbur) -- Sabaq/Sabaq Dhor/Dhor's own rows stay non-interactive
+   outside their edit icon, exactly as before. */
+.history-entry-content-clickable { cursor: pointer; }
+.history-full-list {
+  margin-top: var(--space-md);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+/* ============================================================
+   Unified day-log view (V3.6.1) -- 4 cards: Sabaq / Sabaq Dhor / Dhor /
+   Tadabbur. Mobile: swipeable rail, 1 card in view. Tablet: swipeable
+   rail, 2 in view. Desktop: static 1x4 grid, no swiping -- breakpoints
+   match the app-wide tablet/desktop convention already used for
+   .login-card/#screen-admin (768/1180), not journal-table.css's older
+   720px one.
+
+   V3.12.0: swipe dots moved above the rail (was below) and now show
+   text labels (Sabaq/SDhor/Dhor/Tadabbur) instead of plain circles --
+   see index.html for the reordered markup, this file just restyles them.
+   Cards are explicitly capped at max-width 30% on desktop -- with all 4
+   visible, the 4-column grid already computes ~25% each on its own
+   (design target: a 13" monitor as the practical maximum width, not an
+   ultra-wide external display), the 30% is a stated ceiling rather than
+   a value that changes today's math.
+   ============================================================ */
+/* V3.22.0: dedicated edit "screen" for Sabaq/Sabaq Dhor/Dhor -- not a new
+   entry in the screen router (js/app.js), but a full takeover of
+   #screen-logDetail that reuses the same card DOM/pickers rather than
+   duplicating them: the tabs+dots row and every card except the one
+   being edited hide, and within the editing card the normal header/
+   History are replaced by this grey top/bottom chrome, confirmed in
+   chat specifically so it can't be confused with the normal screen. */
+#screen-logDetail.log-detail-editing .log-detail-dots { display: none; }
+#screen-logDetail.log-detail-editing .log-detail-card:not(.editing-active) { display: none; }
+/* Bug fix (2026-08-05, found by the user): #dhorTimerHost was never a
+   .log-detail-card -- it's a separate custom element, targeted
+   everywhere else in this file by its own id, not this class -- so the
+   rule above genuinely could never reach it. That meant the Timer
+   stayed visible throughout editing on every one of the other 3 cards,
+   despite the actual intent above being "every card except the one
+   being edited hides." The rail then had 2 visible elements instead of
+   1 (the card being edited, plus the still-visible Timer still holding
+   its own spot in the layout), and could land on the wrong one --
+   explaining "editing an entry lands on the Timer" regardless of which
+   path opened editing, since this same gap sat underneath all of them. */
+#screen-logDetail.log-detail-editing #dhorTimerHost { display: none; }
+.log-detail-card.editing-active .card-header-row,
+.log-detail-card.editing-active .history-container { display: none; }
+.edit-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  background: var(--color-page-bg);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  margin-bottom: var(--space-sm);
+}
+.edit-topbar button {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  font-size: 13px;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+}
+.edit-bottombar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  justify-items: center;
+  align-items: center;
+  background: var(--color-page-bg);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-md);
+  margin-top: var(--space-md);
+}
+.edit-bottombar button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  background: none;
+  padding: 4px;
+  font-size: 10px;
+  font-weight: normal;
+  text-transform: uppercase;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.edit-bottombar button svg { width: 22px; height: 22px; }
+.edit-bottombar-delete {
+  background: var(--color-error) !important;
+  color: #fff !important;
+  border-radius: var(--radius-sm);
+  padding: 6px 4px !important;
+}
+
+/* Dhor's timer (2026-08-04, confirmed in chat) -- now a permanent rail
+   card (index.html's #logDetailRail, in the exact position Tadabbur
+   used to occupy) rather than an on-demand full-screen overlay.
+   V3.45.7: relocated again, this time OUT of the rail entirely --
+   confirmed in chat as needing to be "extremely useful"-level
+   accessible (dropdown/Home/per-card entry points) and to stay visible
+   across ANY navigation while running, neither of which the rail-card
+   version could ever do. Both modes are now genuine position:fixed,
+   full-viewport overlays -- "full" mode below no longer inherits any
+   sizing from the rail context it used to sit in (flex/scroll-snap-
+   align, both meaningless now that there's no rail to belong to). */
+#dhorTimerHost {
+  position: fixed;
+  inset: 0;
+  z-index: 260;
+  border-radius: 0;
+}
+/* V3.45.8: maximized (mode="full") state gets its own size and
+   position, confirmed in chat -- was inheriting the base rule's full-
+   viewport inset:0 unconditionally (both modes identical apart from
+   mini's own override), which is also the likely explanation for the
+   reported close-icon dead zone (the × sitting right at the very top
+   edge, overlapping the device's own status bar). Explicitly resets
+   inset to auto before setting top/left -- the base rule's inset:0
+   would otherwise still apply its own right/bottom sides even with
+   top/left overridden here. Height fixed at 60% of viewport
+   (--dhor-row2-h and other viewport-relative formulas elsewhere in
+   this file are unrelated -- this is a plain, direct 60vh, not
+   derived from any existing pattern). Width follows the app's own
+   standard 50%/30% cap at the existing 768px/1180px breakpoints --
+   same --width-tablet/--width-desktop tokens every other capped
+   screen already uses, not new values invented for this. */
+#dhorTimerHost[mode="full"] {
+  inset: auto;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  height: 60vh;
+  width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+@media (min-width: 768px) and (max-width: 1179px) {
+  #dhorTimerHost[mode="full"] { width: var(--width-tablet); }
+}
+@media (min-width: 1180px) {
+  #dhorTimerHost[mode="full"] { width: var(--width-desktop); }
+}
+/* 2026-08-05, confirmed in chat: same technique .modal-overlay
+   (css/components.css) already uses for History/Plan Dhor's own
+   bottom-anchored sheets, applied here for the same underlying reason.
+   V3.34.8 anchored only the pill's bottom edge directly
+   (position:fixed;bottom:...), which is exactly the single-edge
+   calculation iOS Safari's bottom-toolbar bug affects -- worked around
+   it with a window.visualViewport recalculation in JS, which also
+   applied unconditionally on desktop where the bug doesn't exist,
+   visibly regressing a position that was already correct there.
+   This version sidesteps the bug's mechanism entirely instead of
+   working around it: the host becomes a full-viewport (inset:0),
+   invisible (:host([mode="mini"]) is already background:transparent)
+   positioning wrapper -- all 4 edges anchored simultaneously, the same
+   way .modal-overlay's own inset:0 is, rather than asking the browser
+   to calculate one edge (bottom) independently, which is specifically
+   the calculation iOS gets wrong. Flexbox (align-items:flex-end) then
+   pushes the actual visible pill -- session-timer.js's own .mini div,
+   inside the shadow DOM -- to the bottom of that wrapper, the same way
+   .modal-card sits at the bottom of .modal-overlay. pointer-events:none
+   here (re-enabled on .mini itself, session-timer.js) so this
+   full-viewport wrapper doesn't intercept taps anywhere except the
+   small area the pill itself actually occupies -- everything behind it
+   stays fully interactive. No JS, no visualViewport, no
+   MutationObserver -- removed entirely from js/dhorPage.js. */
+/* 2026-08-05, confirmed in chat: scope changed from "fix the bottom
+   position" to a genuinely draggable pill -- default starting position
+   moved to the top of the screen (align-items:flex-start, was flex-end),
+   safe-area padding flipped to the top edge accordingly. Once dragged,
+   session-timer.js switches .mini itself to explicit position:fixed
+   left/top (see its own comment) -- this host rule only governs where
+   the pill starts before any drag happens this session. */
+#dhorTimerHost[mode="mini"] {
+  position: fixed;
+  inset: 0;
+  flex: none;
+  height: auto;
+  overflow: visible;
+  border-radius: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: calc(20px + env(safe-area-inset-top, 0px)) 20px 0;
+  pointer-events: none;
+  z-index: 250;
+}
+
+#dhorLapRollup {
+  margin-top: 6px;
+}
+#dhorLapRollupToggle {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  color: var(--color-ink-faint);
+  cursor: pointer;
+  font: inherit;
+}
+#dhorLapRollupList {
+  font-size: 12px;
+  color: var(--color-ink-faint);
+  margin-top: 4px;
+  padding-left: 4px;
+}
+
+/* V3.45.8: the Stopwatch column that used to sit here
+   (.dhor-stopwatch-col/#dhorStopwatchToggle) is REMOVED entirely,
+   confirmed in chat -- redundant with the new timer-icon header
+   button (V3.45.7). Duration's own CSS below is unchanged. */
+/* 2026-08-04, confirmed in chat: Duration split into 2 plain number
+   fields (Minutes/Seconds) instead of one text field holding "mm:ss" --
+   a colon in the middle of a single field doesn't play well with the
+   native numeric keypad (inputmode="numeric" expects plain digits), so
+   each field being purely numeric lets the native keypad work exactly
+   as designed for both, with the colon here now just a visual separator
+   between them, not something either field actually contains. */
+.dhor-duration-split {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#dhor_duration_min, #dhor_duration_sec {
+  height: var(--dhor-row2-h);
+  box-sizing: border-box;
+  width: 100%;
+  text-align: center;
+}
+.dhor-duration-colon {
+  font-weight: 600;
+  color: var(--color-ink-faint);
+}
+
+/* V3.44.1: Tadabbur's own card, confirmed in chat -- deliberately a
+   different exception from the standard 30/50 rule: 50% specifically,
+   at every breakpoint the cap would otherwise narrow it further
+   (unlike most screen-content instances, which drop to 30% at
+   >=1180px, this one stays at 50% throughout -- more room for long
+   reflection text was the explicit reason given). Flex column so the
+   textarea below can flex to fill the remaining space after the
+   header/date/checkbox/label take their own natural height.
+   min-height mirrors .screen's own formula, additionally subtracting
+   .screen's own 10px-all-sides padding (20px total top+bottom) since
+   this card sits inside that padding -- same technique already used
+   elsewhere (--appcontent-vpad) for a parent's padding not otherwise
+   being accounted for. */
+#tadabburCard {
+  display: flex;
+  flex-direction: column;
+  /* V3.45.2: min-height changed to height, confirmed in chat -- the
+     card's own display:flex/flex-direction:column and #tadabbur_text's
+     own flex:1 were never the problem (both correct since V3.44.1).
+     What was missing: this card never had a DEFINITE size, only a
+     minimum, for its internal flex children to actually distribute
+     within -- min-height alone doesn't reliably guarantee that the way
+     an explicit height does. Deliberately NOT touching #appContent/
+     .screen (the app-wide flex-cascade alternative was considered and
+     rejected as too risky, since those are shared by every screen) --
+     this stays fully scoped to this one card. height still allows
+     genuinely long content to push the card taller, same as before,
+     since nothing here sets overflow:hidden. */
+  height: calc(100vh - var(--auth-band-height, 60px) - (var(--appcontent-vpad) * 2) - 20px);
+  height: calc(100dvh - var(--auth-band-height, 60px) - (var(--appcontent-vpad) * 2) - 20px);
+  /* V3.45.1: anchor point for .tadabbur-close-btn's absolute
+     positioning below, confirmed in chat -- matches .modal-card's own
+     position:relative for the same corner-x-button pattern used
+     elsewhere in the app. */
+  position: relative;
+  /* V3.45.1: .card-date-row (below) needs --dhor-row2-h, normally
+     defined on .detail-page (line ~177) -- this card doesn't carry
+     that class (it would also pull in .detail-page's own unrelated
+     label/input/textarea styling, which isn't wanted here), so the
+     same 44px value is defined directly on this card instead. */
+  --dhor-row2-h: 44px;
+}
+@media (min-width: 768px) {
+  #tadabburCard { width: var(--width-tablet); margin: 0 auto; }
+}
+@media (min-width: 1180px) {
+  /* Deliberately repeats --width-tablet (50%), not --width-desktop
+     (30%) -- .screen-content's own >=1180px rule would otherwise drop
+     this to 30% like everywhere else; this override keeps it at 50%
+     throughout instead. */
+  #tadabburCard { width: var(--width-tablet); margin: 0 auto; }
+}
+/* V3.45.1: close button moves out of the header row's own grid flow
+   entirely, confirmed in chat -- pinned to the card's top-right
+   corner instead of sitting inline (previously grouped with Save via
+   .card-header-right, which is now removed since only Save remains in
+   that slot). Values match .modal-card .close-btn's own established
+   corner-x pattern exactly, rather than inventing new ones. */
+.tadabbur-close-btn {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+}
+#tadabburCard label { margin-top: var(--space-sm); }
+/* V3.44.1: flexes to fill the card's own remaining height, confirmed
+   in chat -- grows/shrinks with the card rather than staying a fixed
+   rows-based size. min-height:0 is the standard flexbox fix for a
+   flex:1 child otherwise refusing to shrink below its content's
+   natural size (same pattern .card-scroll already uses elsewhere).
+   Font-size increased per "make the input text bigger".
+   V3.45.1: NOT YET ROOT-CAUSED -- confirmed via live screenshot that
+   this isn't actually growing to fill the card in practice, despite
+   this CSS reading correctly on paper. Left as-is rather than
+   guessing at an unverified fix; flagged for the user to re-check
+   after this delivery, since it may or may not resolve as a side
+   effect of the header-row/date-row restructuring done alongside it
+   in this same version. */
+#tadabbur_text {
+  flex: 1;
+  min-height: 0;
+  font-size: 18px;
+  resize: none;
+}
+
+/* ---- Log Detail rail (swipeable Sabaq/Sabaq Dhor/Dhor cards) ---- */
+.log-detail-rail {
+  display: flex;
+  gap: var(--space-md);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+/* 2026-08-05, confirmed in chat: height was a flat 70vh regardless of
+   how much space was actually available above it (the auth band, the
+   dots row) -- leaving a real, substantial gap of unused space below
+   the card on most phones, and stranding edit-mode's own bottom
+   controls partway down the screen instead of near the bottom where a
+   thumb naturally reaches. Two calculated standards now, confirmed as
+   a pattern to reuse for anything built going forward, not a one-off:
+   normal view subtracts both the auth band and the dots row (~36px --
+   the .dot button's own padding+font+border, worked out directly,
+   plus its row's 8px margin-bottom); .editing-active subtracts only
+   the auth band, since the dots row is genuinely hidden then (see
+   js/logDetailScreen.js's own enterEditScreenMode), not just visually
+   similar to hidden. #dhorTimerHost (below) uses the same "normal"
+   calculation -- it's a separate custom element, not a .log-detail-card,
+   so it needed its own matching rule, not something this one covers
+   automatically. */
+.log-detail-card {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  background: var(--color-surface);
+  border: 1px solid var(--color-table-border);
+  border-radius: var(--radius-md);
+  /* V3.43: now also subtracts #appContent's own vertical padding
+     (--appcontent-vpad, tokens.css), confirmed in chat -- this formula
+     predates #appContent having any explicit sizing of its own, so it
+     never accounted for that space being unavailable; without this the
+     card would run past the visible viewport by exactly that amount. */
+  height: calc(100vh - var(--auth-band-height, 60px) - 36px - (var(--appcontent-vpad) * 2));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* .card-scroll below does the actual scrolling */
+}
+.log-detail-card.editing-active {
+  height: calc(100vh - var(--auth-band-height, 60px) - (var(--appcontent-vpad) * 2));
+}
+.log-detail-card .card-scroll {
+  overflow-y: auto;
+  padding: var(--space-md);
+  flex: 1;
+  min-height: 0; /* flexbox gotcha: without this, a flex:1 child with
+                    overflow-y:auto won't actually scroll -- it just grows
+                    past its container instead of shrinking to fit it. */
+}
+
+@media (min-width: 768px) and (max-width: 1179px) {
+  .log-detail-card { flex: 0 0 calc(50% - (var(--space-md) / 2)); }
+}
+@media (min-width: 1180px) {
+  .log-detail-rail {
+    display: grid;
+    /* V3.45.8: was repeat(4, 1fr), left over from the old 4-card layout
+       (Timer was the 4th slot) -- confirmed as a real bug, not
+       ambiguous. Timer's removal in V3.45.7 was never matched here, so
+       the 3 real cards were each being squeezed into 1/4-width columns,
+       leaving a permanently empty 4th column and a large unused gap on
+       the right at wide screens. */
+    grid-template-columns: repeat(3, 1fr);
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+  /* Dots row is hidden entirely at this breakpoint (all 3 cards already
+     visible in the grid, nothing to indicate a position within) -- same
+     auth-band-only calculation as .editing-active uses everywhere,
+     since there's genuinely nothing to subtract for it here either. */
+  .log-detail-card { height: calc(100vh - var(--auth-band-height, 60px) - (var(--appcontent-vpad) * 2)); max-width: 30%; }
+}
+
+/* Dot indicators -- only meaningful while the rail actually swipes;
+   hidden entirely on the desktop grid, where all 3 cards are visible at
+   once and there's nothing to indicate a position within. Text labels
+   (V3.12.0) instead of plain circles -- same active/inactive states.
+   V3.19.0: row is now a 3-col grid (spacer:dots:close) so the dots stay
+   centered independently of the xclose button on the right -- only
+   .log-detail-dots-inner hides on desktop below, not the whole row,
+   since xclose still needs to work there too. */
+/* V3.41: this specific close button now goes to Home like every other
+   screen's (js/logDetailScreen.js) -- was Journal-only before, kept
+   its own dots-row-specific layout here since it needs to sit in a
+   3-column spacer:dots:close grid unlike every other screen's simpler
+   placement, but shares .screen-close-btn's icon sizing/color/active
+   state via the same class now (see above) rather than duplicating
+   those rules a second time. */
+.log-detail-dots {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+.log-detail-dots-inner {
+  grid-column: 2;
+  display: flex;
+  justify-content: center;
+  gap: var(--space-sm);
+}
+.log-detail-close {
+  grid-column: 3;
+  justify-self: end;
+}
+.log-detail-dots .dot {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-table-border);
+  color: var(--color-ink-soft);
+}
+.log-detail-dots .dot.active { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
+@media (min-width: 1180px) {
+  .log-detail-dots-inner { display: none; }
+}
+
+/* V3.24.0: Plan Dhor modal -- reuses .modal-overlay/.modal-card as its
+   base (same as History's popup), plus the shared checkbox-grid pattern
+   already proven for Sabaq Dhor (.sabaq-dhor-sections-list) here as
+   .plan-dhor-grid, for the same reason it was built as one shared grid
+   there: every row needs to align in a genuinely shared column. */
+.plan-dhor-card {
+  max-width: 480px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+/* 2026-08-04 (confirmed in chat, found via the user's own DevTools
+   experiment isolating viewport height as the real variable): every
+   child of a flex container can shrink by default unless told not to.
+   .plan-dhor-content (below) already has flex:1 + overflow-y:auto --
+   the clear intent was always for the list to be the one part that
+   scrolls internally when content exceeds the 85vh cap. But without
+   flex-shrink:0 here, the title row, switch, and Select All button
+   were ALSO shrinking to help make room, proportional to how much
+   content-list overflow there was -- which is exactly why "View All"
+   (30 rows) squeezed the switch far more than "Dhor Plan" (a handful
+   of rows) ever did, and why a shorter browser viewport made it worse:
+   85vh of a smaller viewport is a smaller number, tightening the same
+   squeeze further. */
+.plan-dhor-row1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+  flex-shrink: 0;
+}
+.plan-dhor-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+.plan-dhor-row1-icons {
+  display: flex;
+  gap: var(--space-md);
+}
+.plan-dhor-row1-icons button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  background: none;
+  padding: 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.plan-dhor-row1-icons button svg { width: 20px; height: 20px; }
+#planDhorTabSwitch { flex-shrink: 0; }
+.plan-dhor-select-all {
+  align-self: center;
+  flex-shrink: 0;
+  margin: var(--space-sm) 0;
+  border: 1px solid var(--palette-evergreen);
+  color: var(--palette-evergreen);
+  background: none;
+  border-radius: var(--radius-sm);
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.plan-dhor-content {
+  overflow-y: auto;
+  flex: 1;
+}
+.plan-dhor-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  column-gap: var(--space-sm);
+  row-gap: 4px;
+}
+.plan-dhor-row-text {
+  min-width: 0;
+  font-size: 14px;
+  padding: 4px 0;
+}
+.plan-dhor-row-greyed { color: var(--color-ink-faint); }
+.plan-dhor-juz-block {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-table-border);
+}
+.plan-dhor-juz-rollup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+  padding-top: 4px;
+}
+.plan-dhor-rollup-btn {
+  border: none;
+  background: none;
+  padding: 4px;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+}
+.plan-dhor-rollup-btn svg { width: 16px; height: 16px; }
+/* display:contents -- this wrapper's own box disappears, so its 2
+   children (label, checkbox) become direct participants in the parent
+   .plan-dhor-grid's 2-column layout, exactly like V3.21.2's shared-grid
+   fix for Sabaq Dhor. Click still bubbles up to this element normally. */
+.plan-dhor-tap-row { display: contents; }
+.plan-dhor-tap-row .plan-dhor-row-text,
+.plan-dhor-tap-row .plan-dhor-unit-cb { cursor: pointer; }
+
+/* V3.24.0: From/To buttons replace Juz/Starting-at when a Plan Dhor
+   selection doesn't reduce to one clean quarter/half/juz -- styled to
+   look like a plain field (matching the selects they replace) even
+   though tapping either reopens Plan Dhor rather than editing inline. */
+.dhor-raw-range-btn {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--color-table-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font-size: 14px;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+/* V3.24.1: Dhor Plan tab's rolled-up day rows -- a plain button styled
+   to look like the same .plan-dhor-row-text label it sits alongside
+   (not like a normal button), since it's a row in the same grid, just
+   with an expand affordance built into its own text rather than a
+   separate checkbox (there's no single meaningful checked state to
+   show when completion is genuinely mixed for that day). */
+.plan-dhor-expand-btn {
+  min-width: 0;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 4px 0;
+  font: inherit;
+  font-size: 14px;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.plan-dhor-subrow {
+  padding-left: var(--space-md);
+  color: var(--color-ink-soft);
+}
+.plan-dhor-unit-cb:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

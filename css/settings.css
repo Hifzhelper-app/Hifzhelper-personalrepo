@@ -1,0 +1,275 @@
+/* ============================================================
+   Hifzhelper — Setup screen (V3.9.0, switch redesign V3.10.0)
+   REVISED from V3.7.x/V3.8.0's 2-card swipeable rail back to ONE
+   continuous scrollable page, now that Dhor Plan and Haidh live here
+   permanently too (confirmed in chat: no separate nav destinations for
+   either — Settings is the only place to reach them, before and after
+   onboarding). Reverts the V3.8.0 "remove the width cap, it's a
+   multi-card grid now" decision right back the other way: a single
+   bounded column is the correct shape again, same category as
+   .login-card/#screen-admin, using the same --width-tablet/--width-
+   desktop tokens.
+
+   Sections (Profile, Hifz Setup, Dhor Schedule, Haidh) each keep their
+   OWN independent save icon+status, same as the old 2-card version —
+   only the outer shell changed from a swiped rail to one flowing column;
+   each section's save semantics stay genuinely separate (saving Dhor
+   Schedule also kicks off generation, saving Haidh also kicks off
+   prediction — conflating these into one page-wide Save would silently
+   re-trigger both any time either changed).
+
+   V3.10.0: every plain either/or button-pair (gender, mushaf, Juz'/Surah,
+   granularity, frequency) becomes a genuine switch/segmented-control —
+   one rounded track, a sliding highlighted thumb, replacing the old
+   .tajweed-tag button-group look for these specific controls (still
+   used elsewhere — days-of-week, slide-in grid cells — unchanged).
+   ============================================================ */
+
+/* V3.44: #screen-settings's own background/width-cap overrides
+   (V3.43's --surface-app special case) are REMOVED entirely, confirmed
+   in chat -- Settings is no longer different from any other screen; it
+   picks up the universal --surface-track background and min-height
+   like everywhere else (css/base.css's .screen rule). --surface-app
+   is retired, no longer used anywhere. Its 4 sections below now use
+   the shared .screen-content class (css/base.css) for their own
+   30/50 cap, rather than each screen individually duplicating that
+   rule -- confirmed explicitly: the screen itself is never
+   independently capped, only content is. */
+
+.settings-section {
+  /* V3.44: now also .screen-content (index.html) for its white
+     background + 30/50 cap -- this rule only adds the border/radius/
+     padding/spacing specific to how a Settings section looks, doesn't
+     duplicate the background or width-cap .screen-content already
+     provides. */
+  border: 1px solid var(--color-table-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+.settings-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+.settings-header-row h2 { margin: 0; }
+
+.settings-hr {
+  border: none;
+  border-top: 1px solid var(--color-table-border);
+  margin: var(--space-lg) 0;
+}
+
+.profile-readonly-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--color-table-border);
+}
+.profile-readonly-label {
+  flex: 0 0 100px;
+  font-size: 13px;
+  color: var(--color-ink-faint);
+}
+.profile-readonly-value {
+  flex: 1;
+  font-size: 14px;
+}
+.profile-readonly-value.url-copy-row input {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--color-ink);
+}
+
+/* Standalone action button (V3.38) — same pill shape/height as
+   .switch-track, filled evergreen since this is a single button now,
+   not a 2-way switch (Surah mode removed entirely; see js/settingsScreen.js).
+   Reused as its own class rather than .switch-option, which assumes a
+   .switch-track flex parent and a sliding .switch-thumb neither of
+   which exist here any more. */
+.settings-action-btn {
+  display: block;
+  width: 100%;
+  height: 42px;
+  border: none;
+  border-radius: 999px;
+  background: var(--palette-evergreen);
+  color: white;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* ---------- Switch / segmented-control (V3.10.0) ----------
+   Generic N-way switch: one rounded track, a sliding highlighted thumb
+   behind whichever option is active, positioned/sized by JS as a plain
+   percentage of the track width (settingsScreen.js's renderSwitch()).
+   Used for every plain either/or or either/or/or control on this screen
+   (gender, mushaf, granularity, frequency) — replaces the .tajweed-tag
+   button-group look for these specific fields (that pattern stays as-is
+   for multi-select controls like days-of-week and the slide-in grids). */
+.switch-track {
+  position: relative;
+  display: flex;
+  height: 42px;
+  border: 1px solid var(--color-table-border);
+  border-radius: 999px;
+  background: white;
+  overflow: hidden;
+}
+.switch-thumb {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc(50% - 4px);
+  border-radius: 999px;
+  background: var(--palette-evergreen);
+  transition: left 0.2s ease, width 0.2s ease, background 0.2s ease;
+  z-index: 0;
+}
+/* Neutral resting state (Juz'/Surah switch before anything's marked, or
+   any switch with no value yet) — a muted, unfilled thumb rather than
+   guessing which side to highlight. */
+.switch-thumb.neutral {
+  background: var(--color-table-border);
+}
+.switch-option {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.2;
+  color: var(--color-ink);
+  cursor: pointer;
+  padding: 0 8px;
+  transition: color 0.2s ease;
+}
+.switch-option.active { color: white; }
+/* The empty middle zone of a neutral-center 3-way switch (Juz'/Surah) —
+   not a real option, just reserves the middle third so the two real
+   options sit left/right with a true center rest position between them. */
+.switch-neutral-zone {
+  flex: 1;
+}
+.switch-hint {
+  font-size: 12px;
+  color: var(--color-ink-faint);
+  margin: 4px 0 var(--space-sm);
+}
+
+/* Small inline variant (V3.11.0) — gender, moved onto the Name row
+   itself rather than its own full-width row/label. */
+.switch-track-small {
+  height: 26px;
+  width: 72px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+.switch-track-small .switch-option {
+  font-size: 12px;
+  padding: 0 4px;
+}
+/* V3.45.3: the Juz method switch's tracker option holds an icon
+   instead of text (confirmed in chat) -- .btn-icon has no sizing of
+   its own anywhere in the app, so it's constrained here specifically
+   to fit this switch's own compact 26px-tall track. */
+#juzMethodSwitch .btn-icon svg { width: 16px; height: 16px; }
+
+/* Section-subheader (V3.11.0) — "Target for Dhor" reads as a proper
+   header (darker, heavier) rather than a plain field label like the
+   other <label> elements on this screen. */
+.settings-subheader {
+  display: block;
+  margin-top: 20px;
+  font-weight: 700;
+  color: var(--color-ink);
+  font-size: 15px;
+}
+
+#setup_mushaf_picker, #dhor_granularity_picker, #dhor_frequency_picker,
+#gender_picker, #openJuzGridBtn { margin-bottom: var(--space-sm); }
+
+.baseline-summary {
+  font-size: 12px;
+  color: var(--color-ink-faint);
+  margin: 4px 0 var(--space-sm);
+}
+
+/* Days-of-week — forced to stay on one line always (compact enough that
+   wrapping would be worse than shrinking), unlike other button-groups on
+   this screen that wrap freely on narrow widths. */
+#dhor_days_picker {
+  display: flex;
+  gap: 4px;
+}
+#dhor_days_picker .tajweed-tag {
+  margin: 0;
+  flex: 1;
+  padding: 6px 2px;
+  font-size: 12px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Dhor schedule's portion-per-session row: number input first (left),
+   then the Juz'/Half/Quarter switch (right) — reversed from the order
+   these were first built in, per direct request. */
+.granularity-quantity-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+.granularity-quantity-row > .quantity-input-wrap { width: 90px; }
+.granularity-quantity-row > .switch-track { flex: 1; min-width: 180px; }
+
+/* Label-left/input-right rows (Default targets, Haidh) — one field per
+   row, label and input on the same line rather than stacked. */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 8px 0;
+}
+.settings-row label { margin: 0; flex: 1; }
+.settings-row input {
+  width: 110px;
+  flex: 0 0 auto;
+  text-align: right;
+}
+.settings-row input[type="date"] { width: 160px; }
+
+/* Juz'/Surah "mark completed sections" slide-in grids (V3.9.0) — replaces
+   the old inline mode-toggle-then-grid pattern entirely (2 buttons that
+   each open a full overlay now, rather than 2 buttons switching what an
+   inline area shows). Reuses .modal-overlay/.modal-card as-is
+   (components.css) for the overlay shell/close-icon/scroll behavior; only
+   the grid itself needs its own rule, since these use FIXED column counts
+   (3 for Juz', 3 for Surah as of V3.10.0's trial — was 2 — unlike the
+   auto-fill/minmax responsive grid this project used for the same
+   underlying cell style before V3.9.0). */
+.section-grid-modal .modal-card {
+  max-width: 520px;
+}
+.section-grid {
+  display: grid;
+  gap: 6px;
+  margin-top: var(--space-md);
+}
+.section-grid.grid-juz { grid-template-columns: repeat(3, 1fr); }
+.section-grid .tajweed-tag {
+  margin: 0;
+  text-align: center;
+  display: block;
+}

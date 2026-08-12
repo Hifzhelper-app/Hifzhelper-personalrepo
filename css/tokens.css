@@ -1,0 +1,118 @@
+/* ============================================================
+   Hifzhelper — design tokens
+   Every color used anywhere in the app should reference one of these
+   variables, never a raw hex value in a component file. This is the one
+   place to look when adjusting the palette or the ring colors — per the
+   explicit instruction to keep these easy to change later.
+   ============================================================ */
+
+:root {
+  /* ---- Base palette (as provided) ---- */
+  --palette-lavender: #E3DADE;
+  --palette-sky:      #D0DBE7;
+  --palette-mauve:    #D8959B;
+  --palette-sage:     #829672;
+  --palette-evergreen:#344C3D;
+
+  /* ---- V3.43: surface- tokens for the new #appContent/screen
+     architecture (confirmed in chat) ---- */
+  --surface-app:      #EBE5D9;
+  --surface-track:    #A2ABA1;
+  --surface-banner:   #4A5D4E;
+  --surface-contrast: #9E83B8;
+
+  /* ---- Semantic usage — map palette colors to what they're FOR.
+     Change the app's look by editing these lines, not by hunting through
+     component CSS for hardcoded colors. ---- */
+  --color-banner:            var(--surface-banner);
+  --color-banner-text:       #FFFFFF;
+
+  /* Journal table — matches the physical paper planner exactly */
+  --color-table-header-date: var(--palette-sage);
+  --color-table-header-log:  var(--palette-mauve);
+  --color-table-header-text: #2B2B28;
+  --color-table-bg:          #FFFFFF;
+  --color-table-border:      var(--palette-lavender);
+
+  /* Page background / general surfaces */
+  --color-page-bg:    #F1F1EC; /* cream, matches the planner's background */
+  --color-surface:    #FFFFFF;
+  --color-ink:        #2B2B28;
+  --color-ink-soft:   #6B6B63;
+  --color-ink-faint:  #9A9A90;
+  --color-accent:     var(--palette-evergreen);
+  --color-accent-soft:var(--palette-sky);
+
+  /* Haidh (V3.39) — reuses the existing palette rather than introducing
+     a new raw hex, per this file's own "every color is a variable"
+     rule. Mauve already reads as a warm, distinct accent against the
+     rest of the palette. */
+  --color-haidh: var(--palette-mauve);
+  --color-haidh-soft: #F1E4E6; /* predicted/planned calendar days — lighter shade, confirmed in chat */
+
+  /* Status colors — deliberately separate from the palette above; these
+     carry fixed meaning (error, success) and shouldn't shift if the
+     palette is restyled later. */
+  --color-error:   #A6473F;
+  --color-success: var(--palette-sage);
+
+  /* ---- Gamified ring colors — PLACEHOLDERS ----
+     Deliberately left as a distinct, clearly-named block: one fixed color
+     per ring (frequency / mistakes / time), triadic scheme still to be
+     chosen. Progress is shown by how much of each ring is filled, not by
+     changing these colors — so these three values are the only thing
+     that ever needs to change once real colors are picked. */
+  --ring-frequency: var(--palette-mauve);   /* placeholder */
+  --ring-mistakes:  var(--palette-sage);    /* placeholder */
+  --ring-time:      var(--palette-evergreen); /* placeholder */
+  --ring-track:     #E8E6DF; /* the unfilled portion of any ring */
+
+  /* ---- Spacing / sizing — consistent across breakpoints ---- */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', 'Courier New', monospace;
+
+  /* Base "normal" text size — everything from body copy to form labels
+     reads off this single variable (V3.4.2), so a future adjustment
+     cascades everywhere at once rather than needing hardcoded sizes
+     hunted down one by one. Raised to ~match button text (14px) per the
+     "text is too small to read" finding. Fine-print-style elements
+     (.eyebrow, .form-hint, .mono IDs, nav tile labels) stay deliberately
+     smaller by design — this variable governs the PRIMARY reading size,
+     not every size in the app. */
+  --font-size-base: 14px;
+
+  /* App-wide responsive width protocol (V3.4.1, refined further in
+     V3.4.2): a centered single-column container (login cards, the admin
+     screen, and similar) fills the available width on mobile, and is
+     capped at these fractions on larger screens — tablet fits ~2 side by
+     side, desktop ~4. The breakpoints themselves (600px/900px) can't be
+     shared via a CSS variable — media query conditions don't support
+     var() — so they're repeated as literals wherever this is used; only
+     the percentage VALUES are centralized here. */
+  --width-tablet: 50%;
+  --width-desktop: 30%;
+}
+
+/* V3.43: single source of truth for #appContent's own vertical padding
+   (--space-md mobile, --space-lg from 768px per css/base.css), reused
+   by the Log Detail cards + Timer height recalibration below so there's
+   only one place that needs to match #appContent's real breakpoint
+   instead of duplicating the condition in multiple files.
+   V3.44: breakpoint corrected from 720px to 768px, confirmed in chat --
+   matches every other width-related threshold in the app now (the
+   --width-tablet/--width-desktop caps, #appContent's own new
+   max-width), which previously disagreed with this one across a 48px
+   window. */
+:root { --appcontent-vpad: var(--space-md); }
+@media (min-width: 768px) {
+  :root { --appcontent-vpad: var(--space-lg); }
+}

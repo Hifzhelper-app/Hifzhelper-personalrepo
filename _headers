@@ -1,0 +1,23 @@
+# Hifzhelper — cache policy (V3.6.2)
+#
+# This project is under active development, deployed manually and
+# file-by-file (no atomic build step) — the state of the live site can
+# change minute to minute, mid-deploy. V3.6 originally cached css/js/
+# shared aggressively (immutable, one year), the standard pattern build
+# tools like Webpack/Vite use — but that pattern is only safe when
+# deploys are atomic, which this project's aren't. A browser that hit a
+# versioned URL mid-deploy got stuck with the wrong content for a full
+# year, with no way to fix it short of yet another version bump. See
+# CONVENTIONS.md #10 for the full account.
+#
+# So: nothing is cached, anywhere, at all, for now. Every request always
+# re-fetches from the origin. The ?v= query-string versioning in
+# index.html/sw.js stays regardless — it's what breaks a cache that forms
+# somewhere outside this project's control (a stray proxy, a CDN that
+# ignores this header), and it's what long-lived caching would key off if
+# it's ever worth reintroducing — once deploys are atomic, or this ships
+# to real users where cache-hit-rate actually matters for performance.
+# Neither is true yet.
+
+/*
+  Cache-Control: no-store

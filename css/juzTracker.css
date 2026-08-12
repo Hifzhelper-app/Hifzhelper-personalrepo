@@ -1,0 +1,45 @@
+/* ============================================================
+   Hifzhelper — Juz Tracker screen (V3.40, Phase 1: free play)
+   ============================================================
+   Deliberately opts OUT of the app-wide 30%/50% width cap
+   (tokens.css --width-tablet/--width-desktop, applied elsewhere to
+   #screen-admin/#screen-settings/.log-detail-card etc.) -- confirmed
+   in chat: the puzzle takes the screen's full width at every
+   breakpoint instead. #appContent's own padding and its 1400px cap
+   at >=1200px (base.css) still apply here same as every other
+   screen; this file only adds the extra top/left/right padding
+   around the puzzle itself so it doesn't sit flush against the
+   screen edges, without capping its width. */
+
+.juz-tracker-wrap {
+  padding: var(--space-lg) var(--space-lg) 0;
+}
+
+/* The component's own <kaaba-juz-tracker> element already scales its
+   internal SVG to 100% of its container's width (kaaba-tracker.js's own
+   CSS), so no width/height rules are needed here for it to fill this
+   wrapper responsively at any screen size. V3.45: the SVG's own
+   internal CSS (inside its shadow DOM, unreachable from here) now also
+   caps at max-height:70vh so it always fits the viewport on wide
+   screens without needing to scroll -- confirmed via 2 screenshots
+   showing the cube running past the bottom of a wide desktop window. */
+
+/* V3.45: white header row, confirmed in chat -- unlike every other
+   screen, this one's header sits on its own white background rather
+   than the screen's --surface-track. Layout also differs from the
+   established Save+Close-grouped-together-on-the-right pattern used
+   elsewhere (Sabaq/Sabaq Dhor/Dhor/Tadabbur): here Save sits right
+   next to the heading itself, with Close separately pushed all the
+   way to the far right via margin-left:auto, not grouped with Save. A
+   plain flex row rather than the standard 3-column .card-header-row
+   grid, since that grid's shape doesn't fit this specific ask. */
+.juz-tracker-header-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: var(--color-surface);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+}
+.juz-tracker-header-row h2 { margin: 0; }
+.juz-tracker-header-row .screen-close-btn { margin-left: auto; }

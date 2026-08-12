@@ -1,0 +1,144 @@
+// ============================================================
+// Hifzhelper — unified day-log view orchestrator (V3.6.1)
+// Replaces the old 3 separate Sabaq/Sabaq Dhor/Dhor screens with one
+// screen holding all 4 cards (Sabaq/Sabaq Dhor/Dhor/Tadabbur). Renders all
+// 4 on entry, scrolls the rail so whichever journal column header was
+// clicked opens on that card, and keeps the dot indicators in sync with
+// scroll position on the tablet/mobile rail (desktop is a static 1x4
+// grid — no scrolling, dots hidden via CSS).
+// ============================================================
+
+// V3.45.7: 'timer' removed from this order -- it's no longer a rail
+// card at all (index.html/js/dhorPage.js), relocated to a truly
+// top-level, always-mounted element outside the whole screen-swapping
+// system. The rail is exactly 3 cards now.
+const LOG_DETAIL_CARD_ORDER = ['sabaq', 'sabaqDhor', 'dhor'];
+
+// V3.12.0: header icons (display only, no click action) + save-button
+// icons for all 3 real cards, injected once here rather than per-render
+// since they never change. Tadabbur's own icons moved out along with the
+// rest of its markup -- js/reflectionCard.js is otherwise unchanged.
+document.getElementById('sabaqHeaderIcon').innerHTML = iconHtml('sabaq');
+document.getElementById('sabaqDhorHeaderIcon').innerHTML = iconHtml('sabaqDhor');
+document.getElementById('dhorHeaderIcon').innerHTML = iconHtml('dhor');
+document.getElementById('sabaqSaveIcon').innerHTML = iconHtml('save');
+document.getElementById('sabaqDhorSaveIcon').innerHTML = iconHtml('save');
+document.getElementById('dhorSaveIcon').innerHTML = iconHtml('save');
+// V3.45.7: new timer-icon buttons, one per card (Sabaq/Sabaq Dhor/Dhor
+// only, confirmed explicitly NOT Tadabbur) -- click handlers wired in
+// js/dhorPage.js alongside the rest of the timer's own open/close logic.
+document.getElementById('sabaqTimerBtnIcon').innerHTML = iconHtml('timer');
+document.getElementById('sabaqDhorTimerBtnIcon').innerHTML = iconHtml('timer');
+document.getElementById('dhorTimerBtnIcon').innerHTML = iconHtml('timer');
+
+// V3.41: xclose now exits to Home like every other screen (confirmed
+// in chat -- was Journal-only before, per the reasoning below, which no
+// longer applies now that ALL screens get a consistent X-to-Home).
+document.getElementById('logDetailClose').innerHTML = iconHtml('close');
+document.getElementById('logDetailClose').addEventListener('click', () => showScreen('home'));
+
+// V3.22.0: edit screen bottom-bar icons (Sabaq/Sabaq Dhor/Dhor), injected
+// once here like the rest of this file's icons. Update reuses the exact
+// same 'save' icon as the normal Save button, per the confirmed design.
+['sabaq', 'sabaqDhor', 'dhor'].forEach(prefix => {
+  document.getElementById(`${prefix}EditCancelIcon`).innerHTML = iconHtml('close');
+  document.getElementById(`${prefix}EditDeleteIcon`).innerHTML = iconHtml('trash');
+  document.getElementById(`${prefix}EditUpdateIcon`).innerHTML = iconHtml('save');
+});
+
+// V3.22.0: the edit "screen" is a full takeover of THIS screen rather
+// than a new entry in js/app.js's router -- reuses each card's existing
+// fields/pickers as-is instead of duplicating them. Hides the tabs/dots
+// row and every card except the one being edited; within that card, its
+// own loadXEntryForEdit (js/sabaqPage.js etc.) hides the normal header/
+// History and shows the grey top/bottom bars in their place.
+function enterEditScreenMode(cardId){
+  document.getElementById('screen-logDetail').classList.add('log-detail-editing');
+  document.getElementById(cardId).classList.add('editing-active');
+}
+function exitEditScreenMode(cardId){
+  const screen = document.getElementById('screen-logDetail');
+  // Bug fix (2026-08-05, found by the user): this used to unconditionally
+  // restore rail.scrollLeft every time it ran -- but it's called both for
+  // a genuine edit-exit AND, separately, as part of each of the 3 cards'
+  // own "fresh open" reset (renderSabaqScreen/renderSabaqDhorScreen/
+  // renderDhorScreen each call this at the top of their own function,
+  // every single time the detail screen opens, whether or not anything
+  // was actually being edited). All 3 running back to back meant
+  // whichever finished last always won, silently overriding wherever a
+  // column-header tap was actually trying to scroll to -- explaining
+  // why every column appeared to land on Sabaq specifically (the tap's
+  // own intended scroll position was being stomped on immediately
+  // after). Checking BEFORE removing the class means this only restores
+  // scroll when a real edit was actually in progress -- a normal fresh
+  // open never had a corrupted scroll position to begin with, so it's
+  // left alone entirely, and renderLogDetailScreen's own scroll-to-card
+  // logic is what actually wins for every entry point (dot taps, column
+  // header taps, timer minimise/maximise) now.
+  const wasEditing = screen.classList.contains('log-detail-editing');
+  screen.classList.remove('log-detail-editing');
+  document.getElementById(cardId).classList.remove('editing-active');
+  if(wasEditing){
+    const rail = document.getElementById('logDetailRail');
+    const card = document.getElementById(cardId);
+    rail.scrollLeft = card.offsetLeft;
+  }
+  updateLogDetailDots();
+}
+
+async function renderLogDetailScreen(initialCard){
+  await Promise.all([
+    renderSabaqScreen(),
+    renderSabaqDhorScreen(),
+    renderDhorScreen()
+  ]);
+
+  const rail = document.getElementById('logDetailRail');
+  const startIndex = Math.max(0, LOG_DETAIL_CARD_ORDER.indexOf(initialCard));
+  const startCard = rail.children[startIndex];
+  // Instant jump on entry — no smooth-scroll animation for the initial
+  // position, that's reserved for deliberate dot taps below.
+  if(startCard) rail.scrollLeft = startCard.offsetLeft;
+  updateLogDetailDots();
+}
+
+// V3.18.0 fix: this used to compare card.offsetLeft against rail.scrollLeft,
+// which silently broke once #appContent gained `transform: translateZ(0)`
+// (V3.4.3's Safari-paint fix) -- a transformed ancestor becomes the nearest
+// offsetParent for elements inside it in every major browser, so each
+// card's offsetLeft was actually being measured from #appContent's edge,
+// several DOM levels above the rail, not from the rail's own content box.
+// That added a constant (#appContent's own padding) to every comparison,
+// so a dot only flipped "active" once you'd scrolled well past where the
+// card had actually snapped into place -- exactly the "erratic"/
+// "misaligned" symptom reported, and invisible from reading either file in
+// isolation since neither one looks wrong on its own.
+// getBoundingClientRect() is always viewport-relative regardless of any
+// ancestor's transform/position tricks, so comparing the rail's own edge
+// to each card's edge this way can't drift the same way offsetLeft did.
+function updateLogDetailDots(){
+  const rail = document.getElementById('logDetailRail');
+  const dots = document.querySelectorAll('#logDetailDots .dot');
+  const cards = Array.from(rail.children);
+  const railLeft = rail.getBoundingClientRect().left;
+  // The rightmost card whose left edge has scrolled into (or past) view is
+  // the "active" one — works for both the 1-in-view (mobile) and
+  // 2-in-view (tablet) cases without needing to special-case either.
+  let activeIndex = 0;
+  cards.forEach((card, i) => {
+    if(card.getBoundingClientRect().left <= railLeft + 4) activeIndex = i;
+  });
+  dots.forEach((dot, i) => dot.classList.toggle('active', i === activeIndex));
+}
+
+document.getElementById('logDetailRail').addEventListener('scroll', () => {
+  window.requestAnimationFrame(updateLogDetailDots);
+});
+
+document.querySelectorAll('#logDetailDots .dot').forEach(dot => {
+  dot.addEventListener('click', () => {
+    const rail = document.getElementById('logDetailRail');
+    const card = rail.children[parseInt(dot.dataset.index, 10)];
+    if(card) rail.scrollTo({ left: card.offsetLeft, behavior: 'smooth' });
+  });
+});

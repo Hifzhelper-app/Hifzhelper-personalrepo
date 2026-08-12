@@ -1,0 +1,237 @@
+/* ============================================================
+   Hifzhelper — shared components: login, modals, forms, buttons
+   ============================================================ */
+
+.pin-box-row {
+  display: flex;
+  gap: var(--space-sm);
+}
+.pin-digit {
+  width: 100%;
+  aspect-ratio: 1;
+  text-align: center;
+  font-size: 22px;
+  padding: 0;
+  border: 1px solid var(--color-table-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-page-bg);
+}
+.pin-digit:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.login-links {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-md);
+}
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--color-accent);
+  font-size: 12px;
+  text-decoration: underline;
+  padding: 0;
+}
+#registerResult {
+  font-size: var(--font-size-base);
+  color: var(--color-success);
+  margin-top: var(--space-sm);
+  line-height: 1.5;
+}
+
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+}
+.login-card {
+  width: 100%;
+  min-width: 280px; /* safety floor so 25%/50% never gets unusably cramped right at a breakpoint edge */
+  background: var(--color-surface);
+  border: 1px solid var(--color-table-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+}
+/* Logo shown above the card's own content on the login/register/create-
+   PIN/fallback screens (V3.4.3 item 11) — capped near 400px but scales
+   down on narrow phones rather than overflowing the card. */
+.login-card .login-logo {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+  margin: 0 auto var(--space-lg);
+}
+/* App-wide responsive width protocol (V3.4.2, refined V3.4.3 — see
+   --width-tablet/--width-desktop in tokens.css): centered by the parent
+   .login-screen's flex centering, so no margin:auto needed here.
+   Threshold raised past 1024px (V3.4.3) because tablet  in
+   landscape is 1180px wide in CSS pixels and was landing in the desktop
+   bucket instead of the intended tablet one —  */
+@media (min-width: 768px) and (max-width: 1179px) {
+  .login-card { width: var(--width-tablet); }
+}
+@media (min-width: 1180px) {
+  .login-card { width: var(--width-desktop); }
+}
+.login-card .eyebrow {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-ink-faint);
+}
+.login-card h1 {
+  font-size: 20px;
+  margin: var(--space-xs) 0 var(--space-md);
+}
+.login-card label {
+  display: block;
+  font-size: var(--font-size-base);
+  color: var(--color-ink-soft);
+  margin-top: var(--space-md);
+  margin-bottom: 4px;
+}
+.login-card input, .login-card select {
+  width: 100%;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-table-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-page-bg);
+}
+.form-hint {
+  font-size: var(--font-size-base);
+  color: var(--color-ink-faint);
+  margin-top: var(--space-sm);
+  line-height: 1.5;
+}
+.form-error {
+  font-size: var(--font-size-base);
+  color: var(--color-error);
+  margin-top: var(--space-sm);
+  min-height: 16px;
+}
+
+button.primary {
+  font-weight: 600;
+  font-size: var(--font-size-base);
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-lg);
+  width: 100%;
+}
+@media (min-width: 720px) { button.primary { width: auto; } }
+button.primary:disabled { opacity: 0.5; }
+button.secondary {
+  font-weight: 600;
+  font-size: var(--font-size-base);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border: 1px solid var(--color-table-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-md);
+  width: 100%;
+}
+
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(43,43,40,0.4);
+  display: flex; align-items: flex-end;
+  z-index: 300;
+}
+@media (min-width: 720px) {
+  .modal-overlay { align-items: center; justify-content: center; }
+}
+.modal-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: var(--space-lg);
+  position: relative;
+}
+@media (min-width: 720px) {
+  .modal-card { border-radius: var(--radius-md); max-width: 480px; }
+}
+.modal-card .close-btn {
+  position: absolute; top: var(--space-md); right: var(--space-md);
+  font-size: 20px; color: var(--color-ink-faint);
+}
+.modal-card h2 { font-size: 16px; margin-bottom: var(--space-md); }
+.modal-card label {
+  display: block; font-size: var(--font-size-base); color: var(--color-ink-soft);
+  margin-top: var(--space-md); margin-bottom: 4px;
+}
+.modal-card input, .modal-card select, .modal-card textarea {
+  width: 100%; padding: var(--space-sm);
+  border: 1px solid var(--color-table-border); border-radius: var(--radius-sm);
+}
+.modal-actions {
+  display: flex; flex-direction: column; gap: var(--space-sm); margin-top: var(--space-lg);
+}
+@media (min-width: 720px) {
+  /* Side-by-side once there's room; button.primary/secondary's own
+     width:100% would otherwise become a flex-basis and overflow a narrow
+     row (CONVENTIONS.md #9), so it's overridden here rather than on the
+     button classes themselves. */
+  .modal-actions { flex-direction: row; }
+  .modal-actions button { flex: 1; width: auto; }
+}
+
+/* Icon-as-button (V3.4 design philosophy going forward): no container,
+   no border — just an icon, sized as a comfortable tap target. */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  color: var(--color-ink-soft);
+  background: none;
+  border: none;
+}
+.icon-btn svg { width: 20px; height: 20px; }
+.icon-btn:active { opacity: 0.6; }
+.icon-btn.copied { color: var(--color-success); }
+
+/* Registration-confirmation screen: the student's personal URL, shown as
+   read-only text next to a copy icon-button. */
+.url-copy-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.url-copy-row input {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+/* Swipe rail — horizontal-scrolling cards, used wherever there's more
+   than one card's worth of content to browse (multiple entries in a day,
+   archived reflections, graphical history views). */
+.swipe-rail {
+  display: flex;
+  gap: var(--space-md);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: var(--space-sm);
+  -webkit-overflow-scrolling: touch;
+}
+.swipe-rail .rail-card {
+  flex: 0 0 85%;
+  scroll-snap-align: start;
+  background: var(--color-surface);
+  border: 1px solid var(--color-table-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+}
+@media (min-width: 720px) {
+  .swipe-rail .rail-card { flex: 0 0 340px; }
+}
