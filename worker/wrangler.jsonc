@@ -8,30 +8,20 @@
   // manifest). Everything else here is ready to use as-is.
 
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "hifzhelper-api",
+  "name": "hifzhelper-personal-api",
   "main": "src/index.js",
   "compatibility_date": "2026-07-17",
 
   "env": {
     "production": {
-      "name": "hifzhelper-api",
+      "name": "hifzhelper-personal-api",
       "d1_databases": [
         {
           "binding": "DB",
-          "database_name": "hifzhelper-maktab1",
-          "database_id": "86879026-645b-462b-b991-9b177e1f52b5"
+          "database_name": "hifzhelper-personal-db",
+          "database_id": "5c1b989d-aa31-4c94-b23f-c6058dec13ae"
         }
-      ]
-    },
-    "development": {
-      "name": "hifzhelper-api-dev",
-      "d1_databases": [
-        {
-          "binding": "DB",
-          "database_name": "hifzhelper-maktab1-dev",
-          "database_id": "0c5e0c61-1c60-4656-9dfa-61a5a06347af"
-        }
-      ]
-    }
-  }
-}
+                     ]
+                 }
+       }
+} 
