@@ -4,7 +4,7 @@
 // reason as shared/data.js. Loaded before every other JS file.
 // ============================================================
 
-const API_BASE = 'https://hifzhelper-api.hifzhelper-app.workers.dev';
+const API_BASE = 'https://hifzhelper-personal-api.hifzhelper-app.workers.dev';
 
 const TOKEN_KEY = 'hh_token';
 const REMEMBERED_ID_KEY = 'hh_login_id';
