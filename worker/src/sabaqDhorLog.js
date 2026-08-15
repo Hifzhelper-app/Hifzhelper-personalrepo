@@ -1,5 +1,5 @@
 import { insertLog, updateLog, deleteLog, getLogs, linkPlanIfProvided } from './logHelpers.js';
-import { isValidDate } from './utils.js';
+import { isValidDate, isTeacherOrAbove } from './utils.js';
 
 const TABLE = 'sabaq_dhor_log';
 const FIELDS = ['zone', 'tajweed_tags', 'mistakes', 'from_surah', 'from_ayah', 'to_surah', 'to_ayah'];
@@ -17,7 +17,7 @@ function validateBody(body) {
 export async function handleGetSabaqDhor(request, env, auth) {
   const url = new URL(request.url);
   const studentId = url.searchParams.get('student_id') || auth.id;
-  if (auth.role !== 'teacher' && studentId !== auth.id) return { error: 'Not authorized', status: 403 };
+  if (!isTeacherOrAbove(auth) && studentId !== auth.id) return { error: 'Not authorized', status: 403 };
   return await getLogs(env, TABLE, studentId, url.searchParams.get('since'), auth.id, true);
 }
 
@@ -33,7 +33,7 @@ export async function handleSaveSabaqDhor(request, env, auth) {
   const err = validateBody(body);
   if (err) return { error: err, status: 400 };
 
-  const studentId = auth.role === 'teacher' && body.student_id ? body.student_id : auth.id;
+  const studentId = isTeacherOrAbove(auth) && body.student_id ? body.student_id : auth.id;
   const values = [
     body.zone ?? null, body.tajweed_tags ?? null, body.mistakes ?? null,
     body.from_surah ?? null, body.from_ayah ?? null, body.to_surah ?? null, body.to_ayah ?? null
@@ -66,12 +66,12 @@ export async function handleUpdateSabaqDhor(request, env, auth) {
   try { body = await request.json(); } catch (e) { return { error: 'Invalid JSON body', status: 400 }; }
   if (!body.id) return { error: 'id is required', status: 400 };
   const { id, ...updates } = body;
-  return await updateLog(env, TABLE, id, auth.id, updates, auth.id, UPDATE_FIELDS);
+  return await updateLog(env, TABLE, id, auth.id, updates, auth.id, UPDATE_FIELDS, true);
 }
 
 export async function handleDeleteSabaqDhor(request, env, auth) {
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
   if (!id) return { error: 'id query param is required', status: 400 };
-  return await deleteLog(env, TABLE, id, auth.id);
+  return await deleteLog(env, TABLE, id, auth.id, true);
 }

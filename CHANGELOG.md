@@ -7,6 +7,34 @@ standing reference docs (those aren't repeated here unless they change).
 
 ---
 
+## V3.55.0 — Maktab delivery (a): `isTeacherOrAbove` refactor (2026-08-15)
+
+**Files touched:** `worker/src/utils.js`, `worker/src/attendance.js`, `worker/src/dhorLog.js`, `worker/src/plans.js`, `worker/src/position.js`, `worker/src/reflections.js`, `worker/src/sabaqDhorLog.js`, `worker/src/sabaqLog.js`, `TODO.md`, `CHANGELOG.md`. **Worker-only — no frontend changes, nothing to bump on that side. Deploy the worker files; same manual, non-atomic, file-by-file process as always. Deploy `utils.js` FIRST or together — every other touched file imports the new helper from it and would fail to load against an old `utils.js`.**
+
+First of the six maktab deliveries laid out in TODO.md's design entry. Roles are now a strict hierarchy (student < teacher < admin) rather than independent flags: a new `isTeacherOrAbove(auth)` helper in `utils.js` replaces every literal `auth.role === 'teacher'` / `!== 'teacher'` permission gate in the worker — 12 sites across 7 files — so an admin passes all of them. Previously an admin failed every one.
+
+**This is a live behaviour change, not a no-op:** an admin can now do everything a teacher can against the existing app — save into another student's PJ, read their logs/plans/position/attendance. Low risk today (ADMIN-01 bootstrap account, no real users) but real. Deliberately left as-is: `admin.js`'s `requireAdmin` (admin-only screens stay admin-only — the hierarchy runs one way) and its role-value validator, and `js/auth.js`'s admin-nav gate.
+
+Verified with a `node:sqlite` simulation driving the real refactored handlers with student/teacher/admin auth against another student's data: 45/45 — every GET gate returns 403 for a student and passes teacher and admin identically; every POST gate confirms which `student_id` the row actually lands on (student's foreign id silently ignored → own; teacher's honoured; admin's now honoured); a student's own-data access unchanged; helper edge cases (null/undefined/unknown role → false). Every touched module confirmed to import cleanly. V3.54.0's 22-check harness on the same files re-run green.
+
+---
+
+## V3.54.0 — Attendance stays in sync with edited/deleted log dates (2026-08-15)
+
+**Files touched:** `worker/src/logHelpers.js`, `worker/src/dhorLog.js`, `worker/src/sabaqLog.js`, `worker/src/sabaqDhorLog.js`, `TODO.md`, `CHANGELOG.md`. **Worker-only — no frontend files changed, nothing to bump on that side. Deploy the worker files; same manual, non-atomic, file-by-file process as always.**
+
+Editing a Sabaq/Sabaq Dhor/Dhor log's date, or deleting one entirely, previously left attendance untouched — a date a log moved away from stayed marked present with nothing left to justify it, and the date it moved onto didn't get marked at all. Fixed with two new shared helpers in `logHelpers.js`: `releaseAttendanceIfNoActivity` checks all three log tables for the date before reverting it (so a day with more than one entry on it correctly stays present when only one of them moves or is deleted), and `markAttendancePresent` marks the new date present unconditionally — same "log wins" rule as a fresh save, including overwriting an existing haidh mark there.
+
+Both `updateLog` and `deleteLog` gained an opt-in `trackAttendance` parameter (default off) rather than doing this unconditionally, specifically because `reflections.js` (Tadabbur) shares these exact same two functions and is deliberately exempt from the attendance rule — confirmed by reading it, not assumed. Only the three activity logs' update/delete handlers pass `true`; reflections needed zero changes.
+
+One accepted limitation: if a log had briefly overwritten a genuine haidh mark and later moves or is deleted with nothing else that day, the date reverts to unset, not back to haidh — there's no stored history to restore from.
+
+Verified with a real `node:sqlite` simulation of the actual schema (pulled from the live `FIELDS` constants, not the original migration — sabaq_log/sabaq_dhor_log have both evolved columns since), driving the real exported handlers end to end: 22/22, covering same-day-sibling protection on both edit and delete, reverting to unset with no sibling, overwriting a haidh mark, reflections staying untouched on both edit and delete, a non-date edit leaving attendance alone, and a malformed date neither crashing nor writing anything bogus.
+
+Found while testing, unrelated, not fixed here: `updateLog` writes an unvalidated date straight into the log row itself (pre-existing, only reachable via a direct API call, not the frontend's date picker) — flagged in TODO.md.
+
+---
+
 ## V3.53.2 — Lap list moved down + taller, fits ~10 rows (2026-08-15)
 
 **Files touched:** `js/session-timer.js`, `index.html`, `js/sw.js`, `TODO.md`, `CHANGELOG.md`. **One identical set for both repos.** Frontend-only — no worker deploy. CSS only — no JS/markup changes.
